@@ -11,8 +11,10 @@
 
 
 <p align="center">
-  Official ElevenLabs <a href="https://github.com/modelcontextprotocol">Model Context Protocol (MCP)</a> server that enables interaction with powerful Text to Speech and audio processing APIs. This server allows MCP clients like <a href="https://www.anthropic.com/claude">Claude Desktop</a>, <a href="https://www.cursor.so">Cursor</a>, <a href="https://codeium.com/windsurf">Windsurf</a>, <a href="https://github.com/openai/openai-agents-python">OpenAI Agents</a> and others to generate speech, clone voices, transcribe audio, and more.
+  <strong>🔧 Extended Fork</strong> of the official ElevenLabs <a href="https://github.com/modelcontextprotocol">Model Context Protocol (MCP)</a> server with <strong>20+ additional tools</strong> for comprehensive API coverage. This server allows MCP clients like <a href="https://www.anthropic.com/claude">Claude Desktop</a>, <a href="https://www.cursor.so">Cursor</a>, <a href="https://codeium.com/windsurf">Windsurf</a>, <a href="https://github.com/openai/openai-agents-python">OpenAI Agents</a> and others to generate speech, clone voices, transcribe audio, manage agents, batch calls, webhooks, and more.
 </p>
+
+> **Note**: This is an extended fork of [elevenlabs/elevenlabs-mcp](https://github.com/elevenlabs/elevenlabs-mcp) with additional tools not available in the official version.
 
 <!--
 mcp-name: io.github.elevenlabs/elevenlabs-mcp
@@ -48,6 +50,59 @@ For other clients like Cursor and Windsurf, run:
 2. `python -m elevenlabs_mcp --api-key={{PUT_YOUR_API_KEY_HERE}} --print` to get the configuration. Paste it into appropriate configuration directory specified by your MCP client.
 
 That's it. Your MCP client can now interact with ElevenLabs through these tools:
+
+## Extended Tools (This Fork)
+
+This fork adds the following tools not available in the official MCP server:
+
+### Agent Management
+| Tool | Description |
+|------|-------------|
+| `update_agent` | Update an existing conversational AI agent's configuration |
+| `delete_agent` | Permanently delete a conversational AI agent |
+
+### Conversation Management
+| Tool | Description |
+|------|-------------|
+| `delete_conversation` | Delete a conversation record |
+
+### Batch Calls
+| Tool | Description |
+|------|-------------|
+| `list_batch_calls` | List all batch calls with pagination |
+| `get_batch_call` | Get details of a specific batch call |
+| `submit_batch_call` | Submit a new batch call to multiple recipients |
+| `cancel_batch_call` | Cancel a running batch call |
+| `delete_batch_call` | Delete a batch call record |
+| `retry_batch_call` | Retry a failed batch call |
+
+### Webhooks
+| Tool | Description |
+|------|-------------|
+| `list_webhooks` | List all configured webhooks |
+| `create_webhook` | Create a new webhook for event notifications |
+| `delete_webhook` | Delete a webhook |
+
+### Agent Secrets
+| Tool | Description |
+|------|-------------|
+| `list_agent_secrets` | List secrets associated with an agent |
+| `create_agent_secret` | Create a new secret for an agent |
+| `delete_agent_secret` | Delete an agent secret |
+
+### Phone Numbers
+| Tool | Description |
+|------|-------------|
+| `get_phone_number` | Get details of a phone number |
+| `update_phone_number` | Update phone number settings and agent assignment |
+
+### Other Tools
+| Tool | Description |
+|------|-------------|
+| `get_agent_widget` | Get embeddable widget code for an agent |
+| `get_conversation_token` | Get a signed token for starting conversations |
+| `list_agent_tools` | List all tools configured for an agent |
+| `get_agent_tool` | Get details of a specific agent tool |
 
 ## Example usage
 
