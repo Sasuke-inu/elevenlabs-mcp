@@ -1,3 +1,3 @@
-"""ElevenLabs MCP Server package."""
+"""ElevenLabs MCP Server package (Extended version with additional tools)."""
 
-__version__ = "0.2.1"
+__version__ = "0.9.1-extended"

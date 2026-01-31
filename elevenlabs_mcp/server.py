@@ -1267,6 +1267,578 @@ def create_composition_plan(
     return composition_plan
 
 
+# ==================== Additional Conversational AI Tools ====================
+# Added tools that were missing from the original MCP server
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Update an existing conversational AI agent.
+
+    Args:
+        agent_id: The ID of the agent to update
+        name: New name for the agent (optional)
+        system_prompt: New system prompt for the agent (optional)
+        first_message: New first message for the agent (optional)
+        language: New language for the agent (optional)
+        voice_id: New voice ID for the agent (optional)
+
+    Returns:
+        TextContent with confirmation of the update
+    """
+)
+def update_agent(
+    agent_id: str,
+    name: str | None = None,
+    system_prompt: str | None = None,
+    first_message: str | None = None,
+    language: str | None = None,
+    voice_id: str | None = None,
+) -> TextContent:
+    """Update an existing conversational AI agent."""
+    update_kwargs = {"agent_id": agent_id}
+
+    if name:
+        update_kwargs["name"] = name
+
+    conversation_config = {}
+    if system_prompt or first_message or language:
+        agent_config = {}
+        if system_prompt:
+            agent_config["prompt"] = {"prompt": system_prompt}
+        if first_message:
+            agent_config["first_message"] = first_message
+        if language:
+            agent_config["language"] = language
+        if agent_config:
+            conversation_config["agent"] = agent_config
+
+    if voice_id:
+        conversation_config["tts"] = {"voice_id": voice_id}
+
+    if conversation_config:
+        update_kwargs["conversation_config"] = conversation_config
+
+    response = client.conversational_ai.agents.update(**update_kwargs)
+
+    return TextContent(
+        type="text",
+        text=f"Agent updated successfully. Agent ID: {response.agent_id}, Name: {response.name}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a conversational AI agent.
+
+    Args:
+        agent_id: The ID of the agent to delete
+
+    Returns:
+        TextContent with confirmation of deletion
+    """
+)
+def delete_agent(agent_id: str) -> TextContent:
+    """Delete a conversational AI agent."""
+    client.conversational_ai.agents.delete(agent_id=agent_id)
+    return TextContent(type="text", text=f"Agent {agent_id} deleted successfully.")
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a conversation.
+
+    Args:
+        conversation_id: The ID of the conversation to delete
+
+    Returns:
+        TextContent with confirmation of deletion
+    """
+)
+def delete_conversation(conversation_id: str) -> TextContent:
+    """Delete a conversation."""
+    client.conversational_ai.conversations.delete(conversation_id=conversation_id)
+    return TextContent(type="text", text=f"Conversation {conversation_id} deleted successfully.")
+
+
+# ==================== Batch Calls Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all batch calls.
+
+    Args:
+        limit: Maximum number of batch calls to return (default 100)
+
+    Returns:
+        TextContent with list of batch calls
+    """
+)
+def list_batch_calls(limit: int = 100) -> TextContent:
+    """List all batch calls."""
+    response = client.conversational_ai.batch_calls.list(limit=limit)
+
+    if not response.batch_calls:
+        return TextContent(type="text", text="No batch calls found.")
+
+    batch_list = []
+    for batch in response.batch_calls:
+        batch_list.append(
+            f"- {batch.name} (ID: {batch.id}, Status: {batch.status})"
+        )
+
+    return TextContent(
+        type="text",
+        text=f"Batch Calls ({len(response.batch_calls)}):\n" + "\n".join(batch_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a specific batch call.
+
+    Args:
+        batch_call_id: The ID of the batch call to retrieve
+
+    Returns:
+        TextContent with batch call details
+    """
+)
+def get_batch_call(batch_call_id: str) -> TextContent:
+    """Get details of a specific batch call."""
+    response = client.conversational_ai.batch_calls.get(batch_call_id=batch_call_id)
+
+    return TextContent(
+        type="text",
+        text=f"Batch Call Details:\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}\n"
+             f"Status: {response.status}\n"
+             f"Agent ID: {response.agent_id}\n"
+             f"Total Recipients: {len(response.recipients) if response.recipients else 0}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Submit a batch call to multiple recipients.
+
+    Args:
+        name: Name for this batch call
+        agent_id: The ID of the agent to use for calls
+        recipients: List of recipient dictionaries with 'phone_number' and optional 'name'
+        agent_phone_number_id: Phone number ID to use for outbound calls (optional)
+
+    ⚠️ COST WARNING: This tool initiates multiple phone calls which may incur significant costs.
+
+    Returns:
+        TextContent with batch call submission confirmation
+    """
+)
+def submit_batch_call(
+    name: str,
+    agent_id: str,
+    recipients: list[dict],
+    agent_phone_number_id: str | None = None,
+) -> TextContent:
+    """Submit a batch call to multiple recipients."""
+    response = client.conversational_ai.batch_calls.create(
+        name=name,
+        agent_id=agent_id,
+        recipients=recipients,
+        agent_phone_number_id=agent_phone_number_id,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Batch call submitted successfully.\n"
+             f"Batch ID: {response.id}\n"
+             f"Name: {response.name}\n"
+             f"Recipients: {len(recipients)}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Cancel a running batch call.
+
+    Args:
+        batch_call_id: The ID of the batch call to cancel
+
+    Returns:
+        TextContent with cancellation confirmation
+    """
+)
+def cancel_batch_call(batch_call_id: str) -> TextContent:
+    """Cancel a running batch call."""
+    client.conversational_ai.batch_calls.cancel(batch_call_id=batch_call_id)
+    return TextContent(type="text", text=f"Batch call {batch_call_id} cancelled successfully.")
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a batch call.
+
+    Args:
+        batch_call_id: The ID of the batch call to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_batch_call(batch_call_id: str) -> TextContent:
+    """Delete a batch call."""
+    client.conversational_ai.batch_calls.delete(batch_call_id=batch_call_id)
+    return TextContent(type="text", text=f"Batch call {batch_call_id} deleted successfully.")
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Retry failed calls in a batch call.
+
+    Args:
+        batch_call_id: The ID of the batch call to retry
+
+    Returns:
+        TextContent with retry confirmation
+    """
+)
+def retry_batch_call(batch_call_id: str) -> TextContent:
+    """Retry failed calls in a batch call."""
+    response = client.conversational_ai.batch_calls.retry(batch_call_id=batch_call_id)
+    return TextContent(
+        type="text",
+        text=f"Batch call {batch_call_id} retry initiated. New batch ID: {response.id}"
+    )
+
+
+# ==================== Webhook Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all webhooks.
+
+    Returns:
+        TextContent with list of webhooks
+    """
+)
+def list_webhooks() -> TextContent:
+    """List all webhooks."""
+    response = client.webhooks.list()
+
+    if not response.webhooks:
+        return TextContent(type="text", text="No webhooks found.")
+
+    webhook_list = []
+    for webhook in response.webhooks:
+        webhook_list.append(
+            f"- {webhook.name} (ID: {webhook.id}, URL: {webhook.url})"
+        )
+
+    return TextContent(
+        type="text",
+        text=f"Webhooks ({len(response.webhooks)}):\n" + "\n".join(webhook_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Create a new webhook.
+
+    Args:
+        name: Name for the webhook
+        url: URL to send webhook events to
+        events: List of events to subscribe to (e.g., ['conversation.completed'])
+
+    Returns:
+        TextContent with webhook creation confirmation
+    """
+)
+def create_webhook(
+    name: str,
+    url: str,
+    events: list[str],
+) -> TextContent:
+    """Create a new webhook."""
+    response = client.webhooks.create(
+        name=name,
+        url=url,
+        events=events,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Webhook created successfully.\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}\n"
+             f"URL: {response.url}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a webhook.
+
+    Args:
+        webhook_id: The ID of the webhook to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_webhook(webhook_id: str) -> TextContent:
+    """Delete a webhook."""
+    client.webhooks.delete(webhook_id=webhook_id)
+    return TextContent(type="text", text=f"Webhook {webhook_id} deleted successfully.")
+
+
+# ==================== Agent Secrets Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all secrets for an agent (values are not returned for security).
+
+    Args:
+        agent_id: The ID of the agent
+
+    Returns:
+        TextContent with list of secret names
+    """
+)
+def list_agent_secrets(agent_id: str) -> TextContent:
+    """List all secrets for an agent."""
+    response = client.conversational_ai.secrets.list(agent_id=agent_id)
+
+    if not response.secrets:
+        return TextContent(type="text", text=f"No secrets found for agent {agent_id}.")
+
+    secret_list = [f"- {secret.name}" for secret in response.secrets]
+
+    return TextContent(
+        type="text",
+        text=f"Secrets for agent {agent_id}:\n" + "\n".join(secret_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Create a new secret for an agent.
+
+    Args:
+        agent_id: The ID of the agent
+        name: Name of the secret
+        value: Value of the secret (will be stored securely)
+
+    Returns:
+        TextContent with creation confirmation
+    """
+)
+def create_agent_secret(
+    agent_id: str,
+    name: str,
+    value: str,
+) -> TextContent:
+    """Create a new secret for an agent."""
+    client.conversational_ai.secrets.create(
+        agent_id=agent_id,
+        name=name,
+        value=value,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Secret '{name}' created successfully for agent {agent_id}."
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a secret from an agent.
+
+    Args:
+        agent_id: The ID of the agent
+        secret_name: The name of the secret to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_agent_secret(agent_id: str, secret_name: str) -> TextContent:
+    """Delete a secret from an agent."""
+    client.conversational_ai.secrets.delete(agent_id=agent_id, name=secret_name)
+    return TextContent(
+        type="text",
+        text=f"Secret '{secret_name}' deleted successfully from agent {agent_id}."
+    )
+
+
+# ==================== Agent Widget Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get widget/embed configuration for an agent.
+
+    Args:
+        agent_id: The ID of the agent
+
+    Returns:
+        TextContent with widget configuration
+    """
+)
+def get_agent_widget(agent_id: str) -> TextContent:
+    """Get widget configuration for an agent."""
+    response = client.conversational_ai.agents.widget.get(agent_id=agent_id)
+
+    return TextContent(
+        type="text",
+        text=f"Widget Configuration for agent {agent_id}:\n{response}"
+    )
+
+
+# ==================== Phone Number Management Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a specific phone number.
+
+    Args:
+        phone_number_id: The ID of the phone number
+
+    Returns:
+        TextContent with phone number details
+    """
+)
+def get_phone_number(phone_number_id: str) -> TextContent:
+    """Get details of a specific phone number."""
+    response = client.conversational_ai.phone_numbers.get(phone_number_id=phone_number_id)
+
+    return TextContent(
+        type="text",
+        text=f"Phone Number Details:\n"
+             f"ID: {response.phone_number_id}\n"
+             f"Number: {response.phone_number}\n"
+             f"Provider: {response.provider}\n"
+             f"Label: {getattr(response, 'label', 'N/A')}\n"
+             f"Agent ID: {getattr(response, 'agent_id', 'Not assigned')}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Update a phone number's configuration.
+
+    Args:
+        phone_number_id: The ID of the phone number to update
+        agent_id: The agent ID to assign to this phone number (optional)
+        label: A label for the phone number (optional)
+
+    Returns:
+        TextContent with update confirmation
+    """
+)
+def update_phone_number(
+    phone_number_id: str,
+    agent_id: str | None = None,
+    label: str | None = None,
+) -> TextContent:
+    """Update a phone number's configuration."""
+    update_kwargs = {"phone_number_id": phone_number_id}
+    if agent_id:
+        update_kwargs["agent_id"] = agent_id
+    if label:
+        update_kwargs["label"] = label
+
+    response = client.conversational_ai.phone_numbers.update(**update_kwargs)
+
+    return TextContent(
+        type="text",
+        text=f"Phone number {phone_number_id} updated successfully."
+    )
+
+
+# ==================== Conversation Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get WebRTC token for real-time voice conversation with an agent.
+
+    Args:
+        agent_id: The ID of the agent
+
+    Returns:
+        TextContent with WebRTC token information
+    """
+)
+def get_conversation_token(agent_id: str) -> TextContent:
+    """Get WebRTC token for real-time conversation."""
+    response = client.conversational_ai.conversations.get_signed_url(agent_id=agent_id)
+
+    return TextContent(
+        type="text",
+        text=f"WebRTC Token Generated:\n"
+             f"Token/URL: {getattr(response, 'signed_url', str(response))}\n"
+             f"Use this to establish a real-time voice connection with the agent."
+    )
+
+
+# ==================== Tools (Custom Tools for Agents) ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all custom tools available for agents.
+
+    Returns:
+        TextContent with list of custom tools
+    """
+)
+def list_agent_tools() -> TextContent:
+    """List all custom tools available for agents."""
+    response = client.conversational_ai.tools.list()
+
+    if not response.tools:
+        return TextContent(type="text", text="No custom tools found.")
+
+    tool_list = []
+    for tool in response.tools:
+        tool_list.append(f"- {tool.name} (ID: {tool.id})")
+
+    return TextContent(
+        type="text",
+        text=f"Custom Tools ({len(response.tools)}):\n" + "\n".join(tool_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a specific custom tool.
+
+    Args:
+        tool_id: The ID of the tool
+
+    Returns:
+        TextContent with tool details
+    """
+)
+def get_agent_tool(tool_id: str) -> TextContent:
+    """Get details of a specific custom tool."""
+    response = client.conversational_ai.tools.get(tool_id=tool_id)
+
+    return TextContent(
+        type="text",
+        text=f"Tool Details:\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}\n"
+             f"Description: {getattr(response, 'description', 'N/A')}"
+    )
+
+
 def _is_broken_pipe_error(exc: BaseException) -> bool:
     """Check if an exception is a BrokenPipeError or contains only BrokenPipeErrors."""
     if isinstance(exc, BrokenPipeError):
