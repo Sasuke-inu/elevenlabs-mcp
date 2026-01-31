@@ -1839,6 +1839,792 @@ def get_agent_tool(tool_id: str) -> TextContent:
     )
 
 
+# ==================== Dubbing Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get available languages for dubbing.
+
+    Returns:
+        TextContent with list of supported dubbing languages
+    """
+)
+def get_dubbing_languages() -> TextContent:
+    """Get available languages for dubbing."""
+    response = client.dubbing.get_languages()
+
+    lang_list = []
+    for lang in response:
+        lang_list.append(f"- {lang.name} ({lang.language_id})")
+
+    return TextContent(
+        type="text",
+        text=f"Supported Dubbing Languages:\n" + "\n".join(lang_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Create a dubbed version of audio/video content from a file.
+
+    ⚠️ COST WARNING: Dubbing can be expensive depending on content length.
+
+    Args:
+        input_file_path: Path to the audio/video file to dub
+        target_lang: Target language code for dubbing
+        source_lang: Source language code (optional, auto-detected if not provided)
+        num_speakers: Number of speakers in the content (optional)
+        name: Name for this dubbing project (optional)
+
+    Returns:
+        TextContent with dubbing job information
+    """
+)
+def create_dub_from_file(
+    input_file_path: str,
+    target_lang: str,
+    source_lang: str | None = None,
+    num_speakers: int | None = None,
+    name: str | None = None,
+) -> TextContent:
+    """Create a dubbed version of content from a file."""
+    file_path = handle_input_file(input_file_path, audio_content_check=False)
+
+    with open(file_path, "rb") as f:
+        response = client.dubbing.dub_a_video_or_an_audio_file(
+            file=f,
+            target_lang=target_lang,
+            source_lang=source_lang,
+            num_speakers=num_speakers,
+            name=name,
+        )
+
+    return TextContent(
+        type="text",
+        text=f"Dubbing job created successfully.\n"
+             f"Dubbing ID: {response.dubbing_id}\n"
+             f"Expected Duration: {getattr(response, 'expected_duration_sec', 'N/A')} seconds"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Create a dubbed version of audio/video content from a URL.
+
+    ⚠️ COST WARNING: Dubbing can be expensive depending on content length.
+
+    Args:
+        source_url: URL of the audio/video content to dub
+        target_lang: Target language code for dubbing
+        source_lang: Source language code (optional, auto-detected if not provided)
+        num_speakers: Number of speakers in the content (optional)
+        name: Name for this dubbing project (optional)
+
+    Returns:
+        TextContent with dubbing job information
+    """
+)
+def create_dub_from_url(
+    source_url: str,
+    target_lang: str,
+    source_lang: str | None = None,
+    num_speakers: int | None = None,
+    name: str | None = None,
+) -> TextContent:
+    """Create a dubbed version of content from a URL."""
+    response = client.dubbing.dub_a_video_or_an_audio_file(
+        source_url=source_url,
+        target_lang=target_lang,
+        source_lang=source_lang,
+        num_speakers=num_speakers,
+        name=name,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Dubbing job created successfully.\n"
+             f"Dubbing ID: {response.dubbing_id}\n"
+             f"Expected Duration: {getattr(response, 'expected_duration_sec', 'N/A')} seconds"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get the status and details of a dubbing project.
+
+    Args:
+        dubbing_id: The ID of the dubbing project
+
+    Returns:
+        TextContent with dubbing project details
+    """
+)
+def get_dubbing(dubbing_id: str) -> TextContent:
+    """Get dubbing project details."""
+    response = client.dubbing.get_dubbing_project_metadata(dubbing_id=dubbing_id)
+
+    return TextContent(
+        type="text",
+        text=f"Dubbing Project Details:\n"
+             f"ID: {dubbing_id}\n"
+             f"Name: {getattr(response, 'name', 'N/A')}\n"
+             f"Status: {getattr(response, 'status', 'N/A')}\n"
+             f"Target Languages: {getattr(response, 'target_languages', 'N/A')}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a dubbing project.
+
+    Args:
+        dubbing_id: The ID of the dubbing project to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_dubbing(dubbing_id: str) -> TextContent:
+    """Delete a dubbing project."""
+    client.dubbing.delete_dubbing_project(dubbing_id=dubbing_id)
+    return TextContent(type="text", text=f"Dubbing project {dubbing_id} deleted successfully.")
+
+
+# ==================== Projects Tools (Audiobooks/Long-form) ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all projects (audiobooks/long-form content).
+
+    Returns:
+        TextContent with list of projects
+    """
+)
+def list_projects() -> TextContent:
+    """List all projects."""
+    response = client.projects.get_all()
+
+    if not response.projects:
+        return TextContent(type="text", text="No projects found.")
+
+    project_list = []
+    for project in response.projects:
+        project_list.append(
+            f"- {project.name} (ID: {project.project_id}, State: {project.state})"
+        )
+
+    return TextContent(
+        type="text",
+        text=f"Projects ({len(response.projects)}):\n" + "\n".join(project_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a specific project.
+
+    Args:
+        project_id: The ID of the project
+
+    Returns:
+        TextContent with project details
+    """
+)
+def get_project(project_id: str) -> TextContent:
+    """Get project details."""
+    response = client.projects.get(project_id=project_id)
+
+    return TextContent(
+        type="text",
+        text=f"Project Details:\n"
+             f"ID: {response.project_id}\n"
+             f"Name: {response.name}\n"
+             f"State: {response.state}\n"
+             f"Default Voice ID: {getattr(response, 'default_voice_id', 'N/A')}\n"
+             f"Default Model ID: {getattr(response, 'default_model_id', 'N/A')}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a project.
+
+    Args:
+        project_id: The ID of the project to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_project(project_id: str) -> TextContent:
+    """Delete a project."""
+    client.projects.delete(project_id=project_id)
+    return TextContent(type="text", text=f"Project {project_id} deleted successfully.")
+
+
+# ==================== Pronunciation Dictionary Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all pronunciation dictionaries.
+
+    Args:
+        page_size: Number of dictionaries to return per page (default 100)
+
+    Returns:
+        TextContent with list of pronunciation dictionaries
+    """
+)
+def list_pronunciation_dictionaries(page_size: int = 100) -> TextContent:
+    """List all pronunciation dictionaries."""
+    response = client.pronunciation_dictionary.get_all(page_size=page_size)
+
+    if not response.pronunciation_dictionaries:
+        return TextContent(type="text", text="No pronunciation dictionaries found.")
+
+    dict_list = []
+    for d in response.pronunciation_dictionaries:
+        dict_list.append(f"- {d.name} (ID: {d.id})")
+
+    return TextContent(
+        type="text",
+        text=f"Pronunciation Dictionaries:\n" + "\n".join(dict_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a pronunciation dictionary.
+
+    Args:
+        dictionary_id: The ID of the dictionary
+
+    Returns:
+        TextContent with dictionary details
+    """
+)
+def get_pronunciation_dictionary(dictionary_id: str) -> TextContent:
+    """Get pronunciation dictionary details."""
+    response = client.pronunciation_dictionary.get(dictionary_id=dictionary_id)
+
+    return TextContent(
+        type="text",
+        text=f"Pronunciation Dictionary:\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}\n"
+             f"Description: {getattr(response, 'description', 'N/A')}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Create a pronunciation dictionary from a file.
+
+    Args:
+        name: Name for the dictionary
+        input_file_path: Path to the pronunciation rules file (lexicon format)
+        description: Description for the dictionary (optional)
+
+    Returns:
+        TextContent with creation confirmation
+    """
+)
+def create_pronunciation_dictionary(
+    name: str,
+    input_file_path: str,
+    description: str | None = None,
+) -> TextContent:
+    """Create a pronunciation dictionary from a file."""
+    file_path = handle_input_file(input_file_path, audio_content_check=False)
+
+    with open(file_path, "rb") as f:
+        response = client.pronunciation_dictionary.create_from_file(
+            name=name,
+            file=f,
+            description=description,
+        )
+
+    return TextContent(
+        type="text",
+        text=f"Pronunciation dictionary created successfully.\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Add rules to a pronunciation dictionary.
+
+    Args:
+        dictionary_id: The ID of the dictionary
+        rules: List of rule dictionaries with 'string_to_replace' and 'phoneme' or 'alias'
+
+    Returns:
+        TextContent with confirmation
+    """
+)
+def add_pronunciation_rules(
+    dictionary_id: str,
+    rules: list[dict],
+) -> TextContent:
+    """Add rules to a pronunciation dictionary."""
+    response = client.pronunciation_dictionary.add_rules_to_the_pronunciation_dictionary(
+        pronunciation_dictionary_id=dictionary_id,
+        rules=rules,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Rules added to dictionary {dictionary_id} successfully."
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Remove rules from a pronunciation dictionary.
+
+    Args:
+        dictionary_id: The ID of the dictionary
+        rule_strings: List of strings to remove from the dictionary
+
+    Returns:
+        TextContent with confirmation
+    """
+)
+def remove_pronunciation_rules(
+    dictionary_id: str,
+    rule_strings: list[str],
+) -> TextContent:
+    """Remove rules from a pronunciation dictionary."""
+    response = client.pronunciation_dictionary.remove_rules_from_the_pronunciation_dictionary(
+        pronunciation_dictionary_id=dictionary_id,
+        rule_strings=rule_strings,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Rules removed from dictionary {dictionary_id} successfully."
+    )
+
+
+# ==================== History Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List generation history items.
+
+    Args:
+        page_size: Number of items per page (default 100)
+        voice_id: Filter by voice ID (optional)
+
+    Returns:
+        TextContent with history items
+    """
+)
+def list_history(
+    page_size: int = 100,
+    voice_id: str | None = None,
+) -> TextContent:
+    """List generation history."""
+    response = client.history.get_all(page_size=page_size, voice_id=voice_id)
+
+    if not response.history:
+        return TextContent(type="text", text="No history items found.")
+
+    history_list = []
+    for item in response.history:
+        history_list.append(
+            f"- {item.history_item_id}: {item.text[:50]}... (Voice: {item.voice_name})"
+        )
+
+    return TextContent(
+        type="text",
+        text=f"History Items ({len(response.history)}):\n" + "\n".join(history_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a specific history item.
+
+    Args:
+        history_item_id: The ID of the history item
+
+    Returns:
+        TextContent with history item details
+    """
+)
+def get_history_item(history_item_id: str) -> TextContent:
+    """Get history item details."""
+    response = client.history.get(history_item_id=history_item_id)
+
+    return TextContent(
+        type="text",
+        text=f"History Item Details:\n"
+             f"ID: {response.history_item_id}\n"
+             f"Text: {response.text}\n"
+             f"Voice: {response.voice_name} ({response.voice_id})\n"
+             f"Date: {getattr(response, 'date_unix', 'N/A')}\n"
+             f"Character Count: {getattr(response, 'character_count_change_from', 'N/A')}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a history item.
+
+    Args:
+        history_item_id: The ID of the history item to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_history_item(history_item_id: str) -> TextContent:
+    """Delete a history item."""
+    client.history.delete(history_item_id=history_item_id)
+    return TextContent(type="text", text=f"History item {history_item_id} deleted successfully.")
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description=f"""Download audio from a history item. {get_output_mode_description(output_mode)}.
+
+    Args:
+        history_item_id: The ID of the history item
+        output_directory: Directory to save the audio file (optional)
+
+    Returns:
+        TextContent with file path or embedded resource
+    """
+)
+def download_history_audio(
+    history_item_id: str,
+    output_directory: str | None = None,
+) -> Union[TextContent, EmbeddedResource]:
+    """Download audio from a history item."""
+    audio_data = client.history.get_audio(history_item_id=history_item_id)
+    audio_bytes = b"".join(audio_data)
+
+    output_path = make_output_path(output_directory, base_path)
+    output_file_name = make_output_file("history", history_item_id, "mp3")
+
+    return handle_output_mode(audio_bytes, output_path, output_file_name, output_mode)
+
+
+# ==================== Voice Management Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a voice from your voice library.
+
+    Args:
+        voice_id: The ID of the voice to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_voice(voice_id: str) -> TextContent:
+    """Delete a voice."""
+    client.voices.delete(voice_id=voice_id)
+    return TextContent(type="text", text=f"Voice {voice_id} deleted successfully.")
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Add a shared voice from the voice library to your collection.
+
+    Args:
+        public_user_id: The public user ID of the voice owner
+        voice_id: The ID of the voice to add
+        new_name: Name for the voice in your collection
+
+    Returns:
+        TextContent with confirmation
+    """
+)
+def add_shared_voice(
+    public_user_id: str,
+    voice_id: str,
+    new_name: str,
+) -> TextContent:
+    """Add a shared voice to your collection."""
+    response = client.voices.add_from_library(
+        public_user_id=public_user_id,
+        voice_id=voice_id,
+        new_name=new_name,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Voice added successfully.\nNew Voice ID: {response.voice_id}"
+    )
+
+
+# ==================== User Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get full user account information.
+
+    Returns:
+        TextContent with user details
+    """
+)
+def get_user_info() -> TextContent:
+    """Get user account information."""
+    response = client.user.get()
+
+    return TextContent(
+        type="text",
+        text=f"User Information:\n"
+             f"User ID: {getattr(response, 'user_id', 'N/A')}\n"
+             f"Email: {getattr(response, 'email', 'N/A')}\n"
+             f"First Name: {getattr(response, 'first_name', 'N/A')}\n"
+             f"Subscription Tier: {getattr(response.subscription, 'tier', 'N/A') if response.subscription else 'N/A'}"
+    )
+
+
+# ==================== Knowledge Base Management Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""List all knowledge base documents.
+
+    Returns:
+        TextContent with list of knowledge base documents
+    """
+)
+def list_knowledge_base_documents() -> TextContent:
+    """List all knowledge base documents."""
+    response = client.conversational_ai.knowledge_base.documents.list()
+
+    if not response.documents:
+        return TextContent(type="text", text="No knowledge base documents found.")
+
+    doc_list = []
+    for doc in response.documents:
+        doc_list.append(f"- {doc.name} (ID: {doc.id})")
+
+    return TextContent(
+        type="text",
+        text=f"Knowledge Base Documents:\n" + "\n".join(doc_list)
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description="""Get details of a knowledge base document.
+
+    Args:
+        document_id: The ID of the document
+
+    Returns:
+        TextContent with document details
+    """
+)
+def get_knowledge_base_document(document_id: str) -> TextContent:
+    """Get knowledge base document details."""
+    response = client.conversational_ai.knowledge_base.documents.get(
+        documentation_id=document_id
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Knowledge Base Document:\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}\n"
+             f"Type: {getattr(response, 'type', 'N/A')}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a knowledge base document.
+
+    Args:
+        document_id: The ID of the document to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_knowledge_base_document(document_id: str) -> TextContent:
+    """Delete a knowledge base document."""
+    client.conversational_ai.knowledge_base.documents.delete(documentation_id=document_id)
+    return TextContent(type="text", text=f"Knowledge base document {document_id} deleted successfully.")
+
+
+# ==================== Conversation Feedback Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Submit feedback for a conversation.
+
+    Args:
+        conversation_id: The ID of the conversation
+        feedback: Feedback value ('like' or 'dislike')
+        comment: Optional comment with the feedback
+
+    Returns:
+        TextContent with confirmation
+    """
+)
+def post_conversation_feedback(
+    conversation_id: str,
+    feedback: Literal["like", "dislike"],
+    comment: str | None = None,
+) -> TextContent:
+    """Submit feedback for a conversation."""
+    client.conversational_ai.conversations.post_feedback(
+        conversation_id=conversation_id,
+        feedback=feedback,
+        comment=comment,
+    )
+
+    return TextContent(
+        type="text",
+        text=f"Feedback submitted for conversation {conversation_id}."
+    )
+
+
+# ==================== Agent Custom Tools CRUD ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Create a custom tool for agents.
+
+    Args:
+        name: Name of the tool
+        description: Description of what the tool does
+        parameters: JSON schema for tool parameters
+        webhook_url: URL to call when the tool is invoked (optional)
+
+    Returns:
+        TextContent with tool creation confirmation
+    """
+)
+def create_agent_tool(
+    name: str,
+    description: str,
+    parameters: dict,
+    webhook_url: str | None = None,
+) -> TextContent:
+    """Create a custom tool for agents."""
+    tool_config = {
+        "name": name,
+        "description": description,
+        "parameters": parameters,
+    }
+    if webhook_url:
+        tool_config["webhook_url"] = webhook_url
+
+    response = client.conversational_ai.tools.create(**tool_config)
+
+    return TextContent(
+        type="text",
+        text=f"Custom tool created successfully.\n"
+             f"ID: {response.id}\n"
+             f"Name: {response.name}"
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Update a custom tool.
+
+    Args:
+        tool_id: The ID of the tool to update
+        name: New name for the tool (optional)
+        description: New description (optional)
+        parameters: New parameters schema (optional)
+
+    Returns:
+        TextContent with update confirmation
+    """
+)
+def update_agent_tool(
+    tool_id: str,
+    name: str | None = None,
+    description: str | None = None,
+    parameters: dict | None = None,
+) -> TextContent:
+    """Update a custom tool."""
+    update_kwargs = {"tool_id": tool_id}
+    if name:
+        update_kwargs["name"] = name
+    if description:
+        update_kwargs["description"] = description
+    if parameters:
+        update_kwargs["parameters"] = parameters
+
+    response = client.conversational_ai.tools.update(**update_kwargs)
+
+    return TextContent(
+        type="text",
+        text=f"Custom tool {tool_id} updated successfully."
+    )
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True),
+    description="""Delete a custom tool.
+
+    Args:
+        tool_id: The ID of the tool to delete
+
+    Returns:
+        TextContent with deletion confirmation
+    """
+)
+def delete_agent_tool(tool_id: str) -> TextContent:
+    """Delete a custom tool."""
+    client.conversational_ai.tools.delete(tool_id=tool_id)
+    return TextContent(type="text", text=f"Custom tool {tool_id} deleted successfully.")
+
+
+# ==================== Conversation Audio Tools ====================
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    description=f"""Download the audio recording of a conversation. {get_output_mode_description(output_mode)}.
+
+    Args:
+        conversation_id: The ID of the conversation
+        output_directory: Directory to save the audio file (optional)
+
+    Returns:
+        TextContent with file path or embedded resource
+    """
+)
+def download_conversation_audio(
+    conversation_id: str,
+    output_directory: str | None = None,
+) -> Union[TextContent, EmbeddedResource]:
+    """Download conversation audio recording."""
+    audio_data = client.conversational_ai.conversations.get_audio(
+        conversation_id=conversation_id
+    )
+    audio_bytes = b"".join(audio_data)
+
+    output_path = make_output_path(output_directory, base_path)
+    output_file_name = make_output_file("conversation", conversation_id, "mp3")
+
+    return handle_output_mode(audio_bytes, output_path, output_file_name, output_mode)
+
+
 def _is_broken_pipe_error(exc: BaseException) -> bool:
     """Check if an exception is a BrokenPipeError or contains only BrokenPipeErrors."""
     if isinstance(exc, BrokenPipeError):

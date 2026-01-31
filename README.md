@@ -53,7 +53,7 @@ That's it. Your MCP client can now interact with ElevenLabs through these tools:
 
 ## Extended Tools (This Fork)
 
-This fork adds the following tools not available in the official MCP server:
+This fork adds **40+ additional tools** not available in the official MCP server for comprehensive ElevenLabs API coverage.
 
 ### Agent Management
 | Tool | Description |
@@ -65,6 +65,9 @@ This fork adds the following tools not available in the official MCP server:
 | Tool | Description |
 |------|-------------|
 | `delete_conversation` | Delete a conversation record |
+| `get_conversation_token` | Get WebRTC token for real-time conversations |
+| `download_conversation_audio` | Download conversation audio recording |
+| `post_conversation_feedback` | Submit feedback (like/dislike) for a conversation |
 
 ### Batch Calls
 | Tool | Description |
@@ -96,13 +99,66 @@ This fork adds the following tools not available in the official MCP server:
 | `get_phone_number` | Get details of a phone number |
 | `update_phone_number` | Update phone number settings and agent assignment |
 
-### Other Tools
+### Agent Widget & Tools
 | Tool | Description |
 |------|-------------|
 | `get_agent_widget` | Get embeddable widget code for an agent |
-| `get_conversation_token` | Get a signed token for starting conversations |
-| `list_agent_tools` | List all tools configured for an agent |
+| `list_agent_tools` | List all custom tools for agents |
 | `get_agent_tool` | Get details of a specific agent tool |
+| `create_agent_tool` | Create a new custom tool for agents |
+| `update_agent_tool` | Update an existing custom tool |
+| `delete_agent_tool` | Delete a custom tool |
+
+### Dubbing (Video/Audio Translation)
+| Tool | Description |
+|------|-------------|
+| `get_dubbing_languages` | Get list of supported dubbing languages |
+| `create_dub_from_file` | Create dubbed version from a local file |
+| `create_dub_from_url` | Create dubbed version from a URL |
+| `get_dubbing` | Get dubbing project status and details |
+| `delete_dubbing` | Delete a dubbing project |
+
+### Projects (Audiobooks/Long-form)
+| Tool | Description |
+|------|-------------|
+| `list_projects` | List all audiobook/long-form projects |
+| `get_project` | Get project details |
+| `delete_project` | Delete a project |
+
+### Pronunciation Dictionaries
+| Tool | Description |
+|------|-------------|
+| `list_pronunciation_dictionaries` | List all pronunciation dictionaries |
+| `get_pronunciation_dictionary` | Get dictionary details |
+| `create_pronunciation_dictionary` | Create a new pronunciation dictionary |
+| `add_pronunciation_rules` | Add rules to a dictionary |
+| `remove_pronunciation_rules` | Remove rules from a dictionary |
+
+### Generation History
+| Tool | Description |
+|------|-------------|
+| `list_history` | List generation history items |
+| `get_history_item` | Get history item details |
+| `delete_history_item` | Delete a history item |
+| `download_history_audio` | Download audio from history |
+
+### Voice Management
+| Tool | Description |
+|------|-------------|
+| `delete_voice` | Delete a voice from your library |
+| `add_shared_voice` | Add a shared voice to your collection |
+
+### Knowledge Base
+| Tool | Description |
+|------|-------------|
+| `list_knowledge_base_documents` | List all knowledge base documents |
+| `get_knowledge_base_document` | Get document details |
+| `delete_knowledge_base_document` | Delete a knowledge base document |
+
+### User Management
+| Tool | Description |
+|------|-------------|
+| `get_user_info` | Get full user account information |
 
 ## Example usage
 
